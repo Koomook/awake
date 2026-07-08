@@ -1,19 +1,19 @@
-# Keep Awake
+# Awake
 
 A tiny macOS menu bar app that stops your Mac from sleeping when you **close the lid** — one click to toggle, nothing else.
 
 ```
-●  ← in your menu bar
+☕  ← in your menu bar
 ────────────────────────
-Keep Awake            ✓
+Keep awake            ✓
    Status: On (won't sleep on lid close)
 ────────────────────────
 Quit
 ```
 
-- `●` — **on**: lid close won't sleep the machine
-- `○` — **off**: normal sleep behavior
-- `◐` — current state couldn't be read
+- ☕ — **on**: lid close won't sleep the machine
+- 💤 — **off**: normal sleep behavior
+- ❓ — current state couldn't be read
 
 ## How it works
 
@@ -24,48 +24,52 @@ sudo pmset -a disablesleep 1   # stay awake with the lid closed
 sudo pmset -a disablesleep 0   # back to normal
 ```
 
-Keep Awake is just a menu bar switch for that flag. It reads the current state with `pmset -g` and flips it with `pmset -a disablesleep 0|1`.
+Awake is just a menu bar switch for that flag. It reads the current state with `pmset -g` and flips it with `pmset -a disablesleep 0|1`.
 
 ## Requirements
 
 - macOS (Apple Silicon or Intel)
-- [uv](https://docs.astral.sh/uv/) — used to run the single-file script with its `rumps` dependency; no manual `pip install` needed.
+- [uv](https://docs.astral.sh/uv/) — runs the single-file script with its `rumps` dependency; no manual `pip install` needed.
 
-## Quick start
+## Install
 
 ```sh
-git clone https://github.com/Koomook/keep-awake.git
-cd keep-awake
+git clone https://github.com/Koomook/awake.git
+cd awake
+./install.sh
+```
+
+This builds `~/Applications/Awake.app`, so you can:
+
+- **Launch from Spotlight** — press `Cmd-Space`, type **Awake**, hit Return.
+- It also **starts automatically at login** and appears in the menu bar (☕/💤).
+
+Uninstall anytime:
+
+```sh
+./uninstall.sh
+```
+
+The app is a menu-bar-only agent (`LSUIElement`), so it has no Dock icon — just the ☕/💤 in the menu bar.
+
+### Run without installing
+
+To try it without creating the app bundle:
+
+```sh
 uv run app.py
 ```
 
-An icon appears in your menu bar. Click it → **Keep Awake** to toggle.
+## Toggling & permissions
 
-Because `pmset` needs root, each toggle shows a Touch ID / password prompt. To make toggling instant and prompt-free, see [Passwordless toggling](#passwordless-toggling-optional).
-
-## Run at login (menu bar app)
-
-Install a per-user LaunchAgent so it starts automatically and stays running:
-
-```sh
-./install.sh      # generates the LaunchAgent, starts it now
-./uninstall.sh    # stops it and removes the LaunchAgent
-```
-
-The plist is generated at install time from your actual clone path and `uv` location, so nothing machine-specific is committed to the repo.
-
-> **Quit note:** the LaunchAgent runs with `KeepAlive=true`, so clicking **Quit** relaunches it a moment later. To turn it off for good, run `./uninstall.sh`.
-
-## Passwordless toggling (optional)
-
-Allow *only* these two exact commands to run without a password, so the menu bar toggle never prompts:
+`pmset` needs root, so each toggle shows a Touch ID / password prompt. To make toggling instant and prompt-free, allow *only* these two exact commands without a password:
 
 ```sh
 echo "$(whoami) ALL=(root) NOPASSWD: /usr/bin/pmset -a disablesleep 0, /usr/bin/pmset -a disablesleep 1" \
-  | sudo tee /etc/sudoers.d/keepawake >/dev/null && sudo chmod 440 /etc/sudoers.d/keepawake
+  | sudo tee /etc/sudoers.d/awake >/dev/null && sudo chmod 440 /etc/sudoers.d/awake
 ```
 
-The app automatically prefers this passwordless path and falls back to the GUI prompt when it isn't set up. Remove it anytime with `sudo rm /etc/sudoers.d/keepawake`.
+The app automatically prefers this passwordless path and falls back to the GUI prompt when it isn't set up. Remove it anytime with `sudo rm /etc/sudoers.d/awake`.
 
 ## Notes
 

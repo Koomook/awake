@@ -2,20 +2,23 @@
 # requires-python = ">=3.11"
 # dependencies = ["rumps"]
 # ///
-"""Keep Awake — a tiny macOS menu bar toggle that stops your Mac from
-sleeping when the lid is closed, by flipping pmset's ``disablesleep`` flag.
+"""Awake — a tiny macOS menu bar toggle that stops your Mac from sleeping
+when the lid is closed, by flipping pmset's ``disablesleep`` flag.
 """
 
 from __future__ import annotations
 
+import fcntl
+import os
 import subprocess
+import sys
 from typing import Final
 
 import rumps
 
-__version__: Final = "0.1.0"
+__version__: Final = "0.2.0"
 
-APP_NAME: Final = "Keep Awake"
+APP_NAME: Final = "Awake"
 
 # Absolute paths so the app works under launchd's minimal PATH.
 PMSET: Final = "/usr/bin/pmset"
@@ -25,11 +28,11 @@ OSASCRIPT: Final = "/usr/bin/osascript"
 SLEEP_DISABLED_KEY: Final = "SleepDisabled"
 REFRESH_INTERVAL_SECONDS: Final = 5
 
-ICON_ENABLED: Final = "●"    # on  — lid close won't sleep
-ICON_DISABLED: Final = "○"   # off — normal sleep behavior
-ICON_UNKNOWN: Final = "◐"    # current state couldn't be read
+ICON_ENABLED: Final = "☕"    # on  — lid close won't sleep
+ICON_DISABLED: Final = "💤"   # off — normal sleep behavior
+ICON_UNKNOWN: Final = "❓"    # current state couldn't be read
 
-TOGGLE_LABEL: Final = "Keep Awake"
+TOGGLE_LABEL: Final = "Keep awake"
 STATUS_ENABLED: Final = "Status: On (won't sleep on lid close)"
 STATUS_DISABLED: Final = "Status: Off (normal)"
 STATUS_UNKNOWN: Final = "Status: unavailable"
@@ -84,7 +87,7 @@ def set_enabled(enabled: bool) -> bool:
         return False
 
 
-class KeepAwakeApp(rumps.App):
+class AwakeApp(rumps.App):
     """Menu bar app that toggles pmset's disablesleep setting."""
 
     def __init__(self) -> None:
@@ -130,8 +133,24 @@ class KeepAwakeApp(rumps.App):
             rumps.alert(title=f"{APP_NAME}: change failed", message=message, ok="OK")
 
 
+_lock_fd: int | None = None  # kept open for the process lifetime
+
+
+def ensure_single_instance() -> None:
+    """Exit silently if another Awake instance already holds the lock."""
+    global _lock_fd
+    fd = os.open(f"/tmp/awake-{os.getuid()}.lock", os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        os.close(fd)
+        sys.exit(0)
+    _lock_fd = fd
+
+
 def main() -> None:
-    KeepAwakeApp().run()
+    ensure_single_instance()
+    AwakeApp().run()
 
 
 if __name__ == "__main__":
