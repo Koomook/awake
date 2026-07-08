@@ -26,11 +26,6 @@ sudo pmset -a disablesleep 0   # back to normal
 
 Awake is just a menu bar switch for that flag. It reads the current state with `pmset -g` and flips it with `pmset -a disablesleep 0|1`.
 
-## Requirements
-
-- macOS (Apple Silicon or Intel)
-- [uv](https://docs.astral.sh/uv/) — runs the single-file script with its `rumps` dependency; no manual `pip install` needed.
-
 ## Install
 
 ```sh
@@ -39,10 +34,14 @@ cd awake
 ./install.sh
 ```
 
-This builds `~/Applications/Awake.app`, so you can:
+`install.sh` builds a **self-contained** `Awake.app` with [py2app](https://py2app.readthedocs.io/) — it embeds its own Python interpreter and `rumps`, so at runtime it needs neither `uv` nor a network connection. The bundle is ad-hoc code-signed and installed to `~/Applications`, so you can:
 
 - **Launch from Spotlight** — press `Cmd-Space`, type **Awake**, hit Return.
-- It also **starts automatically at login** and appears in the menu bar (☕/💤).
+- It also **starts automatically at login** and shows in the menu bar (☕/💤).
+
+It's a menu-bar-only agent (`LSUIElement`), so there's no Dock icon.
+
+> **First launch:** the app is ad-hoc signed, not notarized by Apple, so the *first* time you open it from Finder macOS may say it's from an "unidentified developer." Right-click the app → **Open** once to approve it (Spotlight/login launches work normally after that).
 
 Uninstall anytime:
 
@@ -50,11 +49,14 @@ Uninstall anytime:
 ./uninstall.sh
 ```
 
-The app is a menu-bar-only agent (`LSUIElement`), so it has no Dock icon — just the ☕/💤 in the menu bar.
+### Requirements
 
-### Run without installing
+- macOS (Apple Silicon or Intel)
+- [uv](https://docs.astral.sh/uv/) — **build-time only**, to provide a py2app-compatible Python. Not needed once the app is installed.
 
-To try it without creating the app bundle:
+### Run without building
+
+To try it straight from source without building the bundle:
 
 ```sh
 uv run app.py
