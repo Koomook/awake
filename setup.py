@@ -36,6 +36,7 @@ APP = ["app.py"]
 DATA_FILES = []
 OPTIONS = {
     "argv_emulation": False,
+    "iconfile": "assets/AppIcon.icns",
     "packages": ["rumps"],
     "includes": ["rumps", "objc", "Foundation", "AppKit"],
     "plist": {
