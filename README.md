@@ -1,6 +1,6 @@
 # Awake
 
-A tiny macOS menu bar app that stops your Mac from sleeping when you **close the lid** — one click to toggle, nothing else.
+A tiny macOS menu bar app that stops your Mac from sleeping when you **close the lid** and keeps phone hotspots from dropping an idle connection.
 
 ```
 ☕  ← in your menu bar
@@ -11,7 +11,7 @@ Keep awake            ✓
 Quit
 ```
 
-- ☕ — **on**: lid close won't sleep the machine
+- ☕ — **on**: lid close won't sleep the machine; hotspot keepalive is active
 - 💤 — **off**: normal sleep behavior
 - ❓ — current state couldn't be read
 
@@ -24,7 +24,10 @@ sudo pmset -a disablesleep 1   # stay awake with the lid closed
 sudo pmset -a disablesleep 0   # back to normal
 ```
 
-Awake is just a menu bar switch for that flag. It reads the current state with `pmset -g` and flips it with `pmset -a disablesleep 0|1`.
+Awake uses that flag for lid-close sleep. While enabled, it also sends one tiny
+DNS packet every 20 seconds so an iPhone or other phone hotspot continues to
+see the Mac as an active client. It does not reconnect to a different network
+or consume meaningful data.
 
 ## Install
 
@@ -75,7 +78,7 @@ The app automatically prefers this passwordless path and falls back to the GUI p
 
 ## Notes
 
-- Keeping the lid closed while awake generates heat and drains the battery — keep it plugged in.
+- Keeping the lid closed while awake generates heat and drains the battery — keep it plugged in, keep it ventilated, and never put it in a bag while enabled.
 - This controls only the lid-close (clamshell) sleep flag. Other sleep prevention (e.g. a running `caffeinate`) is independent and not reflected in the icon.
 
 ## License

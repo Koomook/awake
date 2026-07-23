@@ -30,7 +30,7 @@ if not hasattr(zlib, "__file__"):
 
 APP_NAME = "Awake"
 BUNDLE_ID = "com.koomook.awake"
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 APP = ["app.py"]
 DATA_FILES = []

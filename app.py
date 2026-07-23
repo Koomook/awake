@@ -10,13 +10,15 @@ from __future__ import annotations
 
 import fcntl
 import os
+import socket
 import subprocess
 import sys
+import threading
 from typing import Final
 
 import rumps
 
-__version__: Final = "0.2.0"
+__version__: Final = "0.3.0"
 
 APP_NAME: Final = "Awake"
 
@@ -27,13 +29,15 @@ OSASCRIPT: Final = "/usr/bin/osascript"
 
 SLEEP_DISABLED_KEY: Final = "SleepDisabled"
 REFRESH_INTERVAL_SECONDS: Final = 5
+KEEPALIVE_INTERVAL_SECONDS: Final = 20
+KEEPALIVE_TARGET: Final = ("1.1.1.1", 53)
 
 ICON_ENABLED: Final = "☕"    # on  — lid close won't sleep
 ICON_DISABLED: Final = "💤"   # off — normal sleep behavior
 ICON_UNKNOWN: Final = "❓"    # current state couldn't be read
 
 TOGGLE_LABEL: Final = "Keep awake"
-STATUS_ENABLED: Final = "Status: On (won't sleep on lid close)"
+STATUS_ENABLED: Final = "Status: On (lid + hotspot keepalive)"
 STATUS_DISABLED: Final = "Status: Off (normal)"
 STATUS_UNKNOWN: Final = "Status: unavailable"
 
@@ -87,6 +91,31 @@ def set_enabled(enabled: bool) -> bool:
         return False
 
 
+def send_network_keepalive() -> None:
+    """Send one tiny DNS packet so phone hotspots do not see an idle client."""
+    # Standard recursive A query for one.one.one.one. A reply is unnecessary:
+    # putting the packet on the Wi-Fi link is enough to refresh hotspot idle
+    # activity, and avoiding recv keeps this worker short and resilient.
+    query = (
+        b"\x00\x00\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00"
+        b"\x03one\x03one\x03one\x03one\x00\x00\x01\x00\x01"
+    )
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.sendto(query, KEEPALIVE_TARGET)
+    except OSError:
+        # Networks come and go. The next interval retries without surfacing a
+        # noisy alert or affecting the sleep-prevention toggle.
+        pass
+
+
+def network_keepalive_loop(stop: threading.Event) -> None:
+    """Keep network activity alive until ``stop`` is signalled."""
+    while not stop.is_set():
+        send_network_keepalive()
+        stop.wait(KEEPALIVE_INTERVAL_SECONDS)
+
+
 class AwakeApp(rumps.App):
     """Menu bar app that toggles pmset's disablesleep setting."""
 
@@ -94,22 +123,54 @@ class AwakeApp(rumps.App):
         super().__init__(APP_NAME, title=ICON_DISABLED, quit_button="Quit")
         self.status_item = rumps.MenuItem("")
         self.menu = [TOGGLE_LABEL, self.status_item, None]
-        self._render(query_enabled())
+        self._keepalive_stop: threading.Event | None = None
+        self._keepalive_thread: threading.Thread | None = None
+        state = query_enabled()
+        self._sync_keepalive(state is True)
+        self._render(state)
 
     @rumps.timer(REFRESH_INTERVAL_SECONDS)
     def refresh(self, _sender: rumps.Timer | None = None) -> None:
         """Keep the UI in sync with the real system state."""
-        self._render(query_enabled())
+        state = query_enabled()
+        self._sync_keepalive(state is True)
+        self._render(state)
 
     @rumps.clicked(TOGGLE_LABEL)
     def toggle(self, _sender: rumps.MenuItem) -> None:
         """Flip the keep-awake state (an unknown state is treated as off)."""
         target = query_enabled() is not True
         if set_enabled(target):
+            self._sync_keepalive(target)
             self._render(target)
         else:
             self._report_failure()
-            self._render(query_enabled())
+            state = query_enabled()
+            self._sync_keepalive(state is True)
+            self._render(state)
+
+    def _sync_keepalive(self, enabled: bool) -> None:
+        """Start or stop the hotspot keepalive worker with the Awake toggle."""
+        running = (
+            self._keepalive_thread is not None
+            and self._keepalive_thread.is_alive()
+        )
+        if enabled and not running:
+            stop = threading.Event()
+            thread = threading.Thread(
+                target=network_keepalive_loop,
+                args=(stop,),
+                name="awake-network-keepalive",
+                daemon=True,
+            )
+            self._keepalive_stop = stop
+            self._keepalive_thread = thread
+            thread.start()
+        elif not enabled and running:
+            assert self._keepalive_stop is not None
+            self._keepalive_stop.set()
+            self._keepalive_stop = None
+            self._keepalive_thread = None
 
     def _render(self, state: bool | None) -> None:
         """Reflect ``state`` (True/False/None) in the icon and menu."""
