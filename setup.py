@@ -3,7 +3,7 @@ menu-bar .app bundle (embedded Python interpreter + rumps + deps).
 
 Build with a py2app-compatible pinned Python via uv, e.g.:
 
-    cd /Users/bong/awake
+    cd /Users/bong/src/awake
     uv run --python 3.12 --with py2app --with rumps python setup.py py2app
 
 Output: dist/Awake.app
